@@ -4,12 +4,13 @@ import (
 	"time"
 )
 
+// Config contains DDNS updater configurations.
 type Config struct {
-	PublicIPv4 string        `toml:"pub_ipv4"`
-	PublicIPv6 string        `toml:"pub_ipv6"`
-	Period     time.Duration `toml:"period"`
-	Timeout    time.Duration `toml:"timeout"`
-	ProxyURL   string        `toml:"proxy_url"`
+	PublicIPv4 string   `toml:"pub_ipv4"`
+	PublicIPv6 string   `toml:"pub_ipv6"`
+	Period     duration `toml:"period"`
+	Timeout    duration `toml:"timeout"`
+	ProxyURL   string   `toml:"proxy_url"`
 
 	Provider struct {
 		Dir  string   `toml:"dir"`
@@ -21,8 +22,8 @@ type Config struct {
 type duration time.Duration
 
 // MarshalText implement encoding.TextMarshaler.
-func (d *duration) MarshalText() ([]byte, error) {
-	return []byte(time.Duration(*d).String()), nil
+func (d duration) MarshalText() ([]byte, error) {
+	return []byte(time.Duration(d).String()), nil
 }
 
 // UnmarshalText implement encoding.TextUnmarshaler.
