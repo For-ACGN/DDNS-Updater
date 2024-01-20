@@ -19,17 +19,25 @@ const (
 // addresses from public IP address service, then report
 // them to the DDNS provider.
 type Updater struct {
-	pubIPv4 *url.URL
-	pubIPv6 *url.URL
+	period time.Duration
+
+	pubIPv4URL    *url.URL
+	pubIPv6URL    *url.URL
+	pubIPv4Client *http.Client
+	pubIPv6Client *http.Client
+	pushIPClient  *http.Client
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewUpdater is used to create a new ddns updater.
 func NewUpdater(cfg *Config) (*Updater, error) {
-	pubIPv4, err := url.Parse(cfg.PublicIPv4)
+	pubIPv4URL, err := url.Parse(cfg.PublicIPv4)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid url about public ipv4 address provider")
 	}
-	pubIPv6, err := url.Parse(cfg.PublicIPv6)
+	pubIPv6URL, err := url.Parse(cfg.PublicIPv6)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid url about public ipv6 address provider")
 	}
@@ -65,17 +73,30 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 	if err != nil {
 		return nil, err
 	}
-	pubIPv4Client := http.Client{
+	pubIPv4Client := &http.Client{
 		Transport: pubIPv4Tr,
 		Timeout:   timeout,
 	}
-	pubIPv6Client := http.Client{
+	pubIPv6Client := &http.Client{
 		Transport: pubIPv6Tr,
 		Timeout:   timeout,
 	}
-	// pushClient :=
-
-	return nil, nil
+	tr := &http.Transport{
+		Proxy: proxy,
+	}
+	pushIPClient := &http.Client{
+		Transport: tr,
+		Timeout:   timeout,
+	}
+	updater := Updater{
+		pubIPv4URL:    pubIPv4URL,
+		pubIPv6URL:    pubIPv6URL,
+		pubIPv4Client: pubIPv4Client,
+		pubIPv6Client: pubIPv6Client,
+		pushIPClient:  pushIPClient,
+	}
+	updater.ctx, updater.cancel = context.WithCancel(context.Background())
+	return &updater, nil
 }
 
 func setIPv4Transport(tr *http.Transport, cfg *Config) error {
