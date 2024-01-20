@@ -1,0 +1,10 @@
+[meta]
+  http_url    = "https://{{.username}}:{{.password}}@dynupdate.no-ip.com/nic/update?hostname={{.hostname}}&myip={{.ipv4}},{{.ipv6}}"
+  http_body   = ""
+  http_method = "GET"
+  http_resp   = "good|nochg"
+
+[args]
+  hostname = "test.ddns.net"
+  username = "user"
+  password = "pass"
