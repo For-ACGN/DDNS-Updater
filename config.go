@@ -11,6 +11,8 @@ type Config struct {
 	Period     duration `toml:"period"`
 	Timeout    duration `toml:"timeout"`
 	ProxyURL   string   `toml:"proxy_url"`
+	LocalIPv4  string   `toml:"local_ipv4"`
+	LocalIPv6  string   `toml:"local_ipv6"`
 
 	Provider struct {
 		Dir  string   `toml:"dir"`
