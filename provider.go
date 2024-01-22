@@ -26,7 +26,7 @@ type provider struct {
 	resp []string
 }
 
-func readProvider(r io.Reader) (*provider, error) {
+func newProvider(r io.Reader) (*provider, error) {
 	d := toml.NewDecoder(r)
 	d.DisallowUnknownFields()
 	cfg := provCfg{}

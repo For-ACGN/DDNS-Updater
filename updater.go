@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,10 +21,11 @@ const (
 // addresses from public IP address service, then report
 // them to the DDNS provider.
 type Updater struct {
-	period time.Duration
+	period    time.Duration
+	providers []*provider
 
-	pubIPv4URL    *url.URL
-	pubIPv6URL    *url.URL
+	pubIPv4Req    *http.Request
+	pubIPv6Req    *http.Request
 	pubIPv4Client *http.Client
 	pubIPv6Client *http.Client
 	pushIPClient  *http.Client
@@ -33,11 +36,11 @@ type Updater struct {
 
 // NewUpdater is used to create a new ddns updater.
 func NewUpdater(cfg *Config) (*Updater, error) {
-	pubIPv4URL, err := url.Parse(cfg.PublicIPv4)
+	pubIPv4Req, err := http.NewRequest(http.MethodGet, cfg.PublicIPv4, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid url about public ipv4 address provider")
 	}
-	pubIPv6URL, err := url.Parse(cfg.PublicIPv6)
+	pubIPv6Req, err := http.NewRequest(http.MethodGet, cfg.PublicIPv6, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid url about public ipv6 address provider")
 	}
@@ -73,6 +76,10 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 	if err != nil {
 		return nil, err
 	}
+	providers, err := loadProviders(cfg)
+	if err != nil {
+		return nil, err
+	}
 	pubIPv4Client := &http.Client{
 		Transport: pubIPv4Tr,
 		Timeout:   timeout,
@@ -89,8 +96,10 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 		Timeout:   timeout,
 	}
 	updater := Updater{
-		pubIPv4URL:    pubIPv4URL,
-		pubIPv6URL:    pubIPv6URL,
+		period:        period,
+		providers:     providers,
+		pubIPv4Req:    pubIPv4Req,
+		pubIPv6Req:    pubIPv6Req,
 		pubIPv4Client: pubIPv4Client,
 		pubIPv6Client: pubIPv6Client,
 		pushIPClient:  pushIPClient,
@@ -153,4 +162,34 @@ func setIPv6Transport(tr *http.Transport, cfg *Config) error {
 	}
 	tr.DialContext = dialContext
 	return nil
+}
+
+func loadProviders(cfg *Config) ([]*provider, error) {
+	l := len(cfg.Provider.Item)
+	if l < 0 {
+		return nil, errors.New("empty provider")
+	}
+	providers := make([]*provider, 0, l)
+	for i := 0; i < l; i++ {
+		path := filepath.Join(cfg.Provider.Dir, cfg.Provider.Item[i])
+		provider, err := loadProvider(path)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, provider)
+	}
+	return providers, nil
+}
+
+func loadProvider(path string) (*provider, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read provider config file")
+	}
+	defer func() { _ = file.Close() }()
+	provider, err := newProvider(file)
+	if err != nil {
+		return nil, err
+	}
+	return provider, nil
 }
