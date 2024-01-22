@@ -1,0 +1,9 @@
+pub_ipv4  = "https://api.ipify.org/"
+pub_ipv6  = "https://api6.ipify.org/"
+period    = "1m"
+timeout   = "15s"
+proxy_url = ""
+
+[provider]
+  dir  = "provider"
+  item = ["noip_1", "noip_2"]
