@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -32,6 +33,8 @@ type Updater struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	once   sync.Once
+	wg     sync.WaitGroup
 }
 
 // NewUpdater is used to create a new ddns updater.
@@ -192,4 +195,38 @@ func loadProvider(path string) (*provider, error) {
 		return nil, err
 	}
 	return provider, nil
+}
+
+func (updater *Updater) Run() {
+	updater.once.Do(func() {
+		updater.wg.Add(1)
+		go updater.run()
+	})
+}
+
+func (updater *Updater) run() {
+	defer updater.wg.Done()
+	ticker := time.NewTicker(updater.period)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			err := updater.Update()
+			if err != nil {
+
+			}
+		case <-updater.ctx.Done():
+			return
+		}
+	}
+}
+
+func (updater *Updater) Update() error {
+
+	return nil
+}
+
+func (updater *Updater) Stop() {
+	updater.cancel()
+	updater.wg.Wait()
 }
