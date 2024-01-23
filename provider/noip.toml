@@ -1,8 +1,12 @@
 [meta]
-  http_url    = "https://{{.username}}:{{.password}}@dynupdate.no-ip.com/nic/update?hostname={{.hostname}}&myip={{.ipv4}},{{.ipv6}}"
-  http_body   = ""
-  http_method = "GET"
-  http_resp   = "good|nochg"
+  http_url_host  = "https://{{.username}}:{{.password}}@dynupdate.no-ip.com"
+  http_url_ipv4  = "/nic/update?hostname={{.hostname}}&myip={{.ipv4}}"
+  http_url_ipv6  = "/nic/update?hostname={{.hostname}}&myip={{.ipv6}}"
+  http_body_ipv4 = ""
+  http_body_ipv6 = ""
+  http_method    = "GET"
+  http_response  = "good|nochg"
+  ip_separator   = ","
 
 [args]
   hostname = "test.ddns.net"
