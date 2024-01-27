@@ -23,6 +23,7 @@ const (
 // them to the DDNS provider.
 type Updater struct {
 	period    time.Duration
+	logger    *logger
 	providers []*provider
 
 	pubIPv4Req    *http.Request
@@ -39,14 +40,6 @@ type Updater struct {
 
 // NewUpdater is used to create a new ddns updater.
 func NewUpdater(cfg *Config) (*Updater, error) {
-	pubIPv4Req, err := http.NewRequest(http.MethodGet, cfg.PublicIPv4, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid url about public ipv4 address provider")
-	}
-	pubIPv6Req, err := http.NewRequest(http.MethodGet, cfg.PublicIPv6, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid url about public ipv6 address provider")
-	}
 	period := time.Duration(cfg.Period)
 	if period == 0 {
 		period = defaultUpdatePeriod
@@ -55,41 +48,51 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 	if timeout == 0 {
 		timeout = defaultUpdateTimeout
 	}
-	var proxy func(*http.Request) (*url.URL, error)
-	if cfg.ProxyURL != "" {
-		proxyURL, err := url.Parse(cfg.ProxyURL)
+	logger, err := newLogger(cfg.LogFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create logger")
+	}
+	var (
+		pubIPv4Req    *http.Request
+		pubIPv6Req    *http.Request
+		pubIPv4Client *http.Client
+		pubIPv6Client *http.Client
+	)
+	if cfg.PublicIPv4.Enable {
+		pubIPv4Req, err = http.NewRequest(http.MethodGet, cfg.PublicIPv4.URL, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid proxy url")
+			return nil, errors.Wrap(err, "invalid url about public ipv4 address provider")
 		}
-		proxy = func(*http.Request) (*url.URL, error) {
-			return proxyURL, nil
+		tr, err := setIPv4Transport(cfg)
+		if err != nil {
+			return nil, err
+		}
+		pubIPv4Client = &http.Client{
+			Transport: tr,
+			Timeout:   timeout,
 		}
 	}
-	pubIPv4Tr := &http.Transport{
-		Proxy: proxy,
-	}
-	err = setIPv4Transport(pubIPv4Tr, cfg)
-	if err != nil {
-		return nil, err
-	}
-	pubIPv6Tr := &http.Transport{
-		Proxy: proxy,
-	}
-	err = setIPv6Transport(pubIPv6Tr, cfg)
-	if err != nil {
-		return nil, err
+	if cfg.PublicIPv6.Enable {
+		pubIPv6Req, err = http.NewRequest(http.MethodGet, cfg.PublicIPv6.URL, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid url about public ipv6 address provider")
+		}
+		tr, err := setIPv6Transport(cfg)
+		if err != nil {
+			return nil, err
+		}
+		pubIPv6Client = &http.Client{
+			Transport: tr,
+			Timeout:   timeout,
+		}
 	}
 	providers, err := loadProviders(cfg)
 	if err != nil {
 		return nil, err
 	}
-	pubIPv4Client := &http.Client{
-		Transport: pubIPv4Tr,
-		Timeout:   timeout,
-	}
-	pubIPv6Client := &http.Client{
-		Transport: pubIPv6Tr,
-		Timeout:   timeout,
+	proxy, err := readProxyURL(cfg.Provider.ProxyURL)
+	if err != nil {
+		return nil, err
 	}
 	tr := &http.Transport{
 		Proxy: proxy,
@@ -100,6 +103,7 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 	}
 	updater := Updater{
 		period:        period,
+		logger:        logger,
 		providers:     providers,
 		pubIPv4Req:    pubIPv4Req,
 		pubIPv6Req:    pubIPv6Req,
@@ -111,15 +115,24 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 	return &updater, nil
 }
 
-func setIPv4Transport(tr *http.Transport, cfg *Config) error {
-	if cfg.LocalIPv4 != "" {
-		return nil
-	}
-	proxy := tr.Proxy
-	addr := net.JoinHostPort(cfg.LocalIPv4, "0")
-	lAddr, err := net.ResolveTCPAddr("tcp4", addr)
+func setIPv4Transport(cfg *Config) (*http.Transport, error) {
+	proxy, err := readProxyURL(cfg.PublicIPv4.ProxyURL)
 	if err != nil {
-		return errors.Wrap(err, "invalid local ipv4 address")
+		return nil, err
+	}
+	tr := &http.Transport{
+		Proxy: proxy,
+	}
+	la := cfg.PublicIPv4.LocalAddr
+	if la == "" {
+		return tr, nil
+	}
+	if net.ParseIP(la) != nil {
+		la = net.JoinHostPort(la, "0")
+	}
+	lAddr, err := net.ResolveTCPAddr("tcp4", la)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid local ipv4 address")
 	}
 	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		dialer := net.Dialer{
@@ -136,18 +149,27 @@ func setIPv4Transport(tr *http.Transport, cfg *Config) error {
 		return dialer.DialContext(ctx, network, addr)
 	}
 	tr.DialContext = dialContext
-	return nil
+	return tr, nil
 }
 
-func setIPv6Transport(tr *http.Transport, cfg *Config) error {
-	if cfg.LocalIPv6 != "" {
-		return nil
-	}
-	proxy := tr.Proxy
-	addr := net.JoinHostPort(cfg.LocalIPv6, "0")
-	lAddr, err := net.ResolveTCPAddr("tcp6", addr)
+func setIPv6Transport(cfg *Config) (*http.Transport, error) {
+	proxy, err := readProxyURL(cfg.PublicIPv6.ProxyURL)
 	if err != nil {
-		return errors.Wrap(err, "invalid local ipv6 address")
+		return nil, err
+	}
+	tr := &http.Transport{
+		Proxy: proxy,
+	}
+	la := cfg.PublicIPv6.LocalAddr
+	if la == "" {
+		return tr, nil
+	}
+	if net.ParseIP(la) != nil {
+		la = net.JoinHostPort(la, "0")
+	}
+	lAddr, err := net.ResolveTCPAddr("tcp6", la)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid local ipv6 address")
 	}
 	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		dialer := net.Dialer{
@@ -164,7 +186,21 @@ func setIPv6Transport(tr *http.Transport, cfg *Config) error {
 		return dialer.DialContext(ctx, network, addr)
 	}
 	tr.DialContext = dialContext
-	return nil
+	return tr, nil
+}
+
+func readProxyURL(URL string) (func(*http.Request) (*url.URL, error), error) {
+	if URL == "" {
+		return nil, nil
+	}
+	proxyURL, err := url.Parse(URL)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid proxy url")
+	}
+	proxy := func(*http.Request) (*url.URL, error) {
+		return proxyURL, nil
+	}
+	return proxy, nil
 }
 
 func loadProviders(cfg *Config) ([]*provider, error) {
@@ -222,7 +258,6 @@ func (updater *Updater) run() {
 }
 
 func (updater *Updater) Update() error {
-
 	return nil
 }
 
