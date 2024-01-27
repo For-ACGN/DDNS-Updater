@@ -8,24 +8,25 @@ import (
 )
 
 func TestLogger(t *testing.T) {
-	l, err := newLogger("testdata/testdata.log")
+	logger, err := newLogger("testdata/testdata.log")
 	require.NoError(t, err)
+	defer func() {
+		err = os.Remove("testdata/testdata.log")
+		require.NoError(t, err)
+	}()
 
-	l.Info("info")
-	l.Infof("infof: %s", "info")
+	logger.Info("info")
+	logger.Infof("infof: %s", "info")
 
-	l.Warning("warning")
-	l.Warningf("warningf: %s", "warning")
+	logger.Warning("warning")
+	logger.Warningf("warningf: %s", "warning")
 
-	l.Error("error")
-	l.Errorf("errorf: %s", "error")
+	logger.Error("error")
+	logger.Errorf("errorf: %s", "error")
 
-	l.Fatal("func", "fatal")
-	l.Fatalf("func", "fatalf: %s", "fatal")
+	logger.Fatal("func", "fatal")
+	logger.Fatalf("func", "fatalf: %s", "fatal")
 
-	err = l.Close()
-	require.NoError(t, err)
-
-	err = os.Remove("testdata/testdata.log")
+	err = logger.Close()
 	require.NoError(t, err)
 }
