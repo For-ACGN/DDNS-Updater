@@ -13,21 +13,21 @@ type Config struct {
 	PublicIPv4 struct {
 		Enable    bool   `toml:"enable"`
 		URL       string `toml:"url"`
+		ProxyURL  string `toml:"proxy"`
 		LocalAddr string `toml:"laddr"`
-		Proxy     string `toml:"proxy"`
 	} `toml:"public_ipv4"`
 
 	PublicIPv6 struct {
 		Enable    bool   `toml:"enable"`
 		URL       string `toml:"url"`
+		ProxyURL  string `toml:"proxy"`
 		LocalAddr string `toml:"laddr"`
-		Proxy     string `toml:"proxy"`
 	} `toml:"public_ipv6"`
 
 	Provider struct {
-		Dir   string   `toml:"dir"`
-		Item  []string `toml:"item"`
-		Proxy string   `toml:"proxy"`
+		Dir      string   `toml:"dir"`
+		Item     []string `toml:"item"`
+		ProxyURL string   `toml:"proxy"`
 	} `toml:"provider"`
 }
 
