@@ -2,6 +2,7 @@ package ddns
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -33,10 +34,9 @@ type provCfg struct {
 }
 
 type provider struct {
-	ipv4Req   *http.Request
-	ipv6Req   *http.Request
-	response  []string
-	separator string
+	cfg  *provCfg
+	host *url.URL
+	Resp []string
 }
 
 func newProvider(r io.Reader) (*provider, error) {
@@ -63,66 +63,80 @@ func newProvider(r io.Reader) (*provider, error) {
 	if cfg.IPv4.Path == "" && cfg.IPv6.Path == "" {
 		return nil, errors.New("IPv4/IPv6 url path are all empty")
 	}
-	ipv4Req, err := parseIPv4Request(cfg, host)
-	if err != nil {
-		return nil, err
-	}
-	ipv6Req, err := parseIPv6Request(cfg, host)
-	if err != nil {
-		return nil, err
-	}
 	p := provider{
-		ipv4Req:  ipv4Req,
-		ipv6Req:  ipv6Req,
-		response: strings.Split(cfg.Meta.Response, "|"),
+		cfg:  cfg,
+		host: host,
+		Resp: strings.Split(cfg.Meta.Response, "|"),
 	}
 	return &p, nil
 }
 
-func parseIPv4Request(cfg *provCfg, host *url.URL) (*http.Request, error) {
-	if cfg.IPv4.Path == "" {
+func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request, error) {
+	if p.cfg.IPv4.Path == "" {
 		return nil, nil
 	}
+	p.cfg.Args["ipv4"] = ip
+	tmpl, err := template.New("ipv4").Parse(p.cfg.IPv4.Path)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse ipv4 provider http path")
+	}
+	b := bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv4.Path)))
+	err = tmpl.Execute(b, p.cfg.Args)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse ipv4 provider http path arguments")
+	}
+	path := b.String()
 	var body io.Reader
-	if cfg.IPv4.Body != "" {
-		tmpl, err := template.New("ipv4").Parse(cfg.IPv4.Body)
+	if p.cfg.IPv4.Body != "" {
+		tmpl, err = template.New("ipv4").Parse(p.cfg.IPv4.Body)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv4 provider http body")
 		}
-		b := bytes.NewBuffer(make([]byte, 0, len(cfg.IPv4.Body)))
-		err = tmpl.Execute(b, cfg.Args)
+		b = bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv4.Body)))
+		err = tmpl.Execute(b, p.cfg.Args)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv4 provider http body arguments")
 		}
 		body = b
 	}
-	URL := host.JoinPath(cfg.IPv4.Path)
-	req, err := http.NewRequest(cfg.Meta.Method, URL.String(), body)
+	URL := p.host.JoinPath(path)
+	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL.String(), body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build ipv4 provider http request")
 	}
 	return req, nil
 }
 
-func parseIPv6Request(cfg *provCfg, host *url.URL) (*http.Request, error) {
-	if cfg.IPv6.Path == "" {
+func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request, error) {
+	if p.cfg.IPv6.Path == "" {
 		return nil, nil
 	}
+	p.cfg.Args["ipv6"] = ip
+	tmpl, err := template.New("ipv6").Parse(p.cfg.IPv6.Path)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse ipv6 provider http path")
+	}
+	b := bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv6.Path)))
+	err = tmpl.Execute(b, p.cfg.Args)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse ipv6 provider http path arguments")
+	}
+	path := b.String()
 	var body io.Reader
-	if cfg.IPv6.Body != "" {
-		tmpl, err := template.New("ipv6").Parse(cfg.IPv6.Body)
+	if p.cfg.IPv6.Body != "" {
+		tmpl, err = template.New("ipv6").Parse(p.cfg.IPv6.Body)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv6 provider http body")
 		}
-		b := bytes.NewBuffer(make([]byte, 0, len(cfg.IPv6.Body)))
-		err = tmpl.Execute(b, cfg.Args)
+		b = bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv6.Body)))
+		err = tmpl.Execute(b, p.cfg.Args)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv6 provider http body arguments")
 		}
 		body = b
 	}
-	URL := host.JoinPath(cfg.IPv6.Path)
-	req, err := http.NewRequest(cfg.Meta.Method, URL.String(), body)
+	URL := p.host.JoinPath(path)
+	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL.String(), body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build ipv6 provider http request")
 	}
