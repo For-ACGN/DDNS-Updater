@@ -5,16 +5,16 @@ log_file = "ddns-updater.log"
 [public_ipv4]
   enable = true
   url    = "https://api.ipify.org/"
-  laddr  = ""
-  proxy  = ""
+  proxy  = "http://127.0.0.1:8080/"
+  laddr  = "127.0.0.1"
 
 [public_ipv6]
   enable = true
   url    = "https://api6.ipify.org/"
-  laddr  = ""
-  proxy  = ""
+  proxy  = "https://127.0.0.1:8081/"
+  laddr  = "127.0.0.2:0"
 
 [provider]
-  dir  = "provider"
-  item = ["noip_1", "noip_2"]
-  proxy  = ""
+  dir   = "testdata"
+  item  = ["provider1", "provider2"]
+  proxy = "socks5://127.0.0.1:1080/"
