@@ -2,6 +2,7 @@ package ddns
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,10 +33,12 @@ type Updater struct {
 	pubIPv6Client *http.Client
 	pushIPClient  *http.Client
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	once   sync.Once
-	wg     sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	runOnce  sync.Once
+	stopOnce sync.Once
+	mutex    sync.Mutex
+	wg       sync.WaitGroup
 }
 
 // NewUpdater is used to create a new ddns updater.
@@ -245,7 +248,9 @@ func loadProvider(path string) (*provider, error) {
 }
 
 func (updater *Updater) Run() {
-	updater.once.Do(func() {
+	updater.mutex.Lock()
+	defer updater.mutex.Unlock()
+	updater.runOnce.Do(func() {
 		updater.wg.Add(1)
 		go updater.run()
 	})
@@ -258,21 +263,84 @@ func (updater *Updater) run() {
 	for {
 		select {
 		case <-ticker.C:
-			err := updater.Update()
-			if err != nil {
-
-			}
+			updater.Update()
 		case <-updater.ctx.Done():
 			return
 		}
 	}
 }
 
-func (updater *Updater) Update() error {
-	return nil
+func (updater *Updater) Update() {
+	ipv4, err := updater.getPublicIPv4()
+	if err != nil {
+		updater.logger.Error("failed to get public ipv4 address:", err)
+		return
+	}
+	updater.logger.Info("IPv4:", ipv4)
+	ipv6, err := updater.getPublicIPv6()
+	if err != nil {
+		updater.logger.Error("failed to get public ipv6 address:", err)
+		return
+	}
+	updater.logger.Info("IPv6:", ipv6)
+	wg := sync.WaitGroup{}
+	for i := 0; i < len(updater.providers); i++ {
+		wg.Add(1)
+		go func(p *provider) {
+			defer wg.Done()
+			err = updater.pushIP(p, ipv4, ipv6)
+			if err != nil {
+				updater.logger.Error("failed to push ip address:", err)
+			}
+		}(updater.providers[i])
+	}
+	wg.Wait()
+}
+
+func (updater *Updater) getPublicIPv4() (string, error) {
+	req := updater.pubIPv4Req.Clone(updater.ctx)
+	resp, err := updater.pubIPv4Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(ip), nil
+}
+
+func (updater *Updater) getPublicIPv6() (string, error) {
+	req := updater.pubIPv6Req.Clone(updater.ctx)
+	resp, err := updater.pubIPv6Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(ip), nil
+}
+
+func (updater *Updater) pushIP(provider *provider, ipv4, ipv6 string) error {
+
 }
 
 func (updater *Updater) Stop() {
-	updater.cancel()
-	updater.wg.Wait()
+	updater.mutex.Lock()
+	defer updater.mutex.Unlock()
+	updater.stopOnce.Do(func() {
+		updater.cancel()
+		updater.wg.Wait()
+		_ = updater.logger.Close()
+	})
 }
