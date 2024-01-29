@@ -276,28 +276,26 @@ func (updater *Updater) Update() {
 		updater.logger.Error("failed to get public ipv4 address:", err)
 		return
 	}
-	updater.logger.Info("IPv4:", ipv4)
 	ipv6, err := updater.getPublicIPv6()
 	if err != nil {
 		updater.logger.Error("failed to get public ipv6 address:", err)
 		return
 	}
-	updater.logger.Info("IPv6:", ipv6)
 	wg := sync.WaitGroup{}
 	for i := 0; i < len(updater.providers); i++ {
 		wg.Add(1)
 		go func(p *provider) {
 			defer wg.Done()
-			err = updater.pushIP(p, ipv4, ipv6)
-			if err != nil {
-				updater.logger.Error("failed to push ip address:", err)
-			}
+			updater.pushIP(p, ipv4, ipv6)
 		}(updater.providers[i])
 	}
 	wg.Wait()
 }
 
 func (updater *Updater) getPublicIPv4() (string, error) {
+	if updater.pubIPv4Req == nil {
+		return "", nil
+	}
 	req := updater.pubIPv4Req.Clone(updater.ctx)
 	resp, err := updater.pubIPv4Client.Do(req)
 	if err != nil {
@@ -307,14 +305,19 @@ func (updater *Updater) getPublicIPv4() (string, error) {
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 	}()
-	ip, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	return string(ip), nil
+	ip := string(data)
+	updater.logger.Info("IPv4:", ip)
+	return ip, nil
 }
 
 func (updater *Updater) getPublicIPv6() (string, error) {
+	if updater.pubIPv6Req == nil {
+		return "", nil
+	}
 	req := updater.pubIPv6Req.Clone(updater.ctx)
 	resp, err := updater.pubIPv6Client.Do(req)
 	if err != nil {
@@ -324,15 +327,80 @@ func (updater *Updater) getPublicIPv6() (string, error) {
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 	}()
-	ip, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	return string(ip), nil
+	ip := string(data)
+	updater.logger.Info("IPv6:", ip)
+	return ip, nil
 }
 
-func (updater *Updater) pushIP(provider *provider, ipv4, ipv6 string) error {
+func (updater *Updater) pushIP(provider *provider, ipv4, ipv6 string) {
+	if ipv4 != "" {
+		err := updater.pushIPv4(provider, ipv4)
+		if err != nil {
+			updater.logger.Error("failed to push ipv4 address:", err)
+		}
+	}
+	if ipv6 != "" {
+		err := updater.pushIPv6(provider, ipv6)
+		if err != nil {
+			updater.logger.Error("failed to push ipv6 address:", err)
+		}
+	}
+}
 
+func (updater *Updater) pushIPv4(provider *provider, ipv4 string) error {
+	req, err := provider.NewIPv4Request(updater.ctx, ipv4)
+	if err != nil {
+		return err
+	}
+	resp, err := updater.pushIPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	r := string(data)
+	for i := 0; i < len(provider.Resp); i++ {
+		if r == provider.Resp[i] {
+			return nil
+		}
+	}
+	return errors.Errorf("unexcepted response: %s", r)
+}
+
+func (updater *Updater) pushIPv6(provider *provider, ipv6 string) error {
+	req, err := provider.NewIPv6Request(updater.ctx, ipv6)
+	if err != nil {
+		return err
+	}
+	resp, err := updater.pushIPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	r := string(data)
+	for i := 0; i < len(provider.Resp); i++ {
+		if r == provider.Resp[i] {
+			return nil
+		}
+	}
+	return errors.Errorf("unexcepted response: %s", r)
 }
 
 func (updater *Updater) Stop() {
