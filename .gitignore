@@ -22,3 +22,6 @@ go.work
 
 # GoLand
 .idea
+
+# DDNS provider
+cmd/provider/noip.toml
