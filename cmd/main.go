@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/kardianos/service"
 	"github.com/pelletier/go-toml/v2"
@@ -17,6 +18,7 @@ var (
 	upOnce    bool
 	install   bool
 	uninstall bool
+	test      bool
 )
 
 func init() {
@@ -24,6 +26,7 @@ func init() {
 	flag.BoolVar(&upOnce, "once", false, "update domain once")
 	flag.BoolVar(&install, "install", false, "install service")
 	flag.BoolVar(&uninstall, "uninstall", false, "uninstall service")
+	flag.BoolVar(&test, "test", false, "running with test mode")
 	flag.Parse()
 }
 
@@ -38,6 +41,19 @@ type config struct {
 }
 
 func main() {
+	// changed path for service and prevent get invalid path when test
+	if !test {
+		path, err := os.Executable()
+		if err != nil {
+			log.Fatalln(err)
+		}
+		dir, _ := filepath.Split(path)
+		err = os.Chdir(dir)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 	cfgData, err := os.ReadFile(cfgPath) // #nosec
 	checkError(err)
 	decoder := toml.NewDecoder(bytes.NewReader(cfgData))
