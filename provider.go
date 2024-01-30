@@ -85,7 +85,7 @@ func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request
 		return nil, errors.Wrap(err, "failed to parse ipv4 provider http path")
 	}
 	b := bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv4.Path)))
-	err = tmpl.Execute(b, p.cfg.Args)
+	err = tmpl.Execute(b, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse ipv4 provider http path arguments")
 	}
@@ -97,7 +97,7 @@ func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request
 			return nil, errors.Wrap(err, "failed to parse ipv4 provider http body")
 		}
 		b = bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv4.Body)))
-		err = tmpl.Execute(b, p.cfg.Args)
+		err = tmpl.Execute(b, args)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv4 provider http body arguments")
 		}
@@ -125,7 +125,7 @@ func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request
 		return nil, errors.Wrap(err, "failed to parse ipv6 provider http path")
 	}
 	b := bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv6.Path)))
-	err = tmpl.Execute(b, p.cfg.Args)
+	err = tmpl.Execute(b, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse ipv6 provider http path arguments")
 	}
@@ -137,7 +137,7 @@ func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request
 			return nil, errors.Wrap(err, "failed to parse ipv6 provider http body")
 		}
 		b = bytes.NewBuffer(make([]byte, 0, len(p.cfg.IPv6.Body)))
-		err = tmpl.Execute(b, p.cfg.Args)
+		err = tmpl.Execute(b, args)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ipv6 provider http body arguments")
 		}
