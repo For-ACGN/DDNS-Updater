@@ -75,7 +75,11 @@ func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request
 	if p.cfg.IPv4.Path == "" {
 		return nil, nil
 	}
-	p.cfg.Args["ipv4"] = ip
+	args := make(map[string]string, len(p.cfg.Args)+1)
+	for k, v := range p.cfg.Args {
+		args[k] = v
+	}
+	args["ipv4"] = ip
 	tmpl, err := template.New("ipv4").Parse(p.cfg.IPv4.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse ipv4 provider http path")
@@ -99,8 +103,8 @@ func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request
 		}
 		body = b
 	}
-	URL := p.host.JoinPath(path)
-	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL.String(), body)
+	URL := p.host.String() + path
+	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL, body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build ipv4 provider http request")
 	}
@@ -111,7 +115,11 @@ func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request
 	if p.cfg.IPv6.Path == "" {
 		return nil, nil
 	}
-	p.cfg.Args["ipv6"] = ip
+	args := make(map[string]string, len(p.cfg.Args)+1)
+	for k, v := range p.cfg.Args {
+		args[k] = v
+	}
+	args["ipv6"] = ip
 	tmpl, err := template.New("ipv6").Parse(p.cfg.IPv6.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse ipv6 provider http path")
@@ -135,8 +143,8 @@ func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request
 		}
 		body = b
 	}
-	URL := p.host.JoinPath(path)
-	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL.String(), body)
+	URL := p.host.String() + path
+	req, err := http.NewRequestWithContext(ctx, p.cfg.Meta.Method, URL, body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build ipv6 provider http request")
 	}

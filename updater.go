@@ -260,7 +260,6 @@ func (updater *Updater) Run() {
 
 func (updater *Updater) run() {
 	defer updater.wg.Done()
-	updater.Update()
 	ticker := time.NewTicker(updater.period)
 	defer ticker.Stop()
 	for {
