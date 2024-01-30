@@ -1,0 +1,25 @@
+period   = "1m"
+timeout  = "15s"
+log_file = "ddns-updater.log"
+
+[public_ipv4]
+  enable = true
+  url    = "https://api.ipify.org/"
+  proxy  = ""
+  laddr  = ""
+
+[public_ipv6]
+  enable = true
+  url    = "https://api6.ipify.org/"
+  proxy  = ""
+  laddr  = ""
+
+[provider]
+  dir   = "provider"
+  item  = ["noip"]
+  proxy = ""
+
+[service]
+  name         = "DDNS Updater"
+  display_name = "DDNS Updater"
+  description  = "DDNS Updater Service"
