@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -235,7 +236,7 @@ func loadProviders(cfg *Config) ([]*provider, error) {
 }
 
 func loadProvider(path string) (*provider, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path + ".toml")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read provider config file")
 	}
@@ -253,11 +254,13 @@ func (updater *Updater) Run() {
 	updater.runOnce.Do(func() {
 		updater.wg.Add(1)
 		go updater.run()
+		updater.logger.Info("ddns-updater is running")
 	})
 }
 
 func (updater *Updater) run() {
 	defer updater.wg.Done()
+	updater.Update()
 	ticker := time.NewTicker(updater.period)
 	defer ticker.Stop()
 	for {
@@ -310,7 +313,7 @@ func (updater *Updater) getPublicIPv4() (string, error) {
 		return "", err
 	}
 	ip := string(data)
-	updater.logger.Info("IPv4:", ip)
+	updater.logger.Info("ipv4:", ip)
 	return ip, nil
 }
 
@@ -332,7 +335,7 @@ func (updater *Updater) getPublicIPv6() (string, error) {
 		return "", err
 	}
 	ip := string(data)
-	updater.logger.Info("IPv6:", ip)
+	updater.logger.Info("ipv6:", ip)
 	return ip, nil
 }
 
@@ -341,12 +344,16 @@ func (updater *Updater) pushIP(provider *provider, ipv4, ipv6 string) {
 		err := updater.pushIPv4(provider, ipv4)
 		if err != nil {
 			updater.logger.Error("failed to push ipv4 address:", err)
+		} else {
+			updater.logger.Info("update ipv4 address successfully")
 		}
 	}
 	if ipv6 != "" {
 		err := updater.pushIPv6(provider, ipv6)
 		if err != nil {
 			updater.logger.Error("failed to push ipv6 address:", err)
+		} else {
+			updater.logger.Info("update ipv6 address successfully")
 		}
 	}
 }
@@ -370,7 +377,7 @@ func (updater *Updater) pushIPv4(provider *provider, ipv4 string) error {
 	}
 	r := string(data)
 	for i := 0; i < len(provider.Resp); i++ {
-		if r == provider.Resp[i] {
+		if strings.Contains(r, provider.Resp[i]) {
 			return nil
 		}
 	}
@@ -396,7 +403,7 @@ func (updater *Updater) pushIPv6(provider *provider, ipv6 string) error {
 	}
 	r := string(data)
 	for i := 0; i < len(provider.Resp); i++ {
-		if r == provider.Resp[i] {
+		if strings.Contains(r, provider.Resp[i]) {
 			return nil
 		}
 	}
@@ -409,6 +416,7 @@ func (updater *Updater) Stop() {
 	updater.stopOnce.Do(func() {
 		updater.cancel()
 		updater.wg.Wait()
+		updater.logger.Info("ddns-updater is closed")
 		_ = updater.logger.Close()
 	})
 }
