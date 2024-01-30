@@ -41,7 +41,7 @@ type config struct {
 }
 
 func main() {
-	// changed path for service and prevent get invalid path when test
+	// change current path for service and prevent get invalid path when test
 	if !test {
 		path, err := os.Executable()
 		if err != nil {
