@@ -23,11 +23,13 @@ type provCfg struct {
 	IPv4 struct {
 		Path string `toml:"path"`
 		Body string `toml:"body"`
+		Skip bool   `toml:"skip"`
 	} `toml:"ipv4"`
 
 	IPv6 struct {
 		Path string `toml:"path"`
 		Body string `toml:"body"`
+		Skip bool   `toml:"skip"`
 	} `toml:"ipv6"`
 
 	Args map[string]string `toml:"args"`
@@ -72,7 +74,7 @@ func newProvider(r io.Reader) (*provider, error) {
 }
 
 func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request, error) {
-	if p.cfg.IPv4.Path == "" {
+	if p.cfg.IPv4.Path == "" || p.cfg.IPv4.Skip {
 		return nil, nil
 	}
 	args := make(map[string]string, len(p.cfg.Args)+1)
@@ -112,7 +114,7 @@ func (p *provider) NewIPv4Request(ctx context.Context, ip string) (*http.Request
 }
 
 func (p *provider) NewIPv6Request(ctx context.Context, ip string) (*http.Request, error) {
-	if p.cfg.IPv6.Path == "" {
+	if p.cfg.IPv6.Path == "" || p.cfg.IPv6.Skip {
 		return nil, nil
 	}
 	args := make(map[string]string, len(p.cfg.Args)+1)

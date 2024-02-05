@@ -63,7 +63,7 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 		}
 		_ = logger.Close()
 	}()
-	if !cfg.PublicIPv4.Enable && !cfg.PublicIPv6.Enable {
+	if !cfg.PublicIPv4.Enabled && !cfg.PublicIPv6.Enabled {
 		return nil, errors.New("IPv4/IPv6 are all disabled")
 	}
 	var (
@@ -72,14 +72,14 @@ func NewUpdater(cfg *Config) (*Updater, error) {
 		pubIPv4Client *http.Client
 		pubIPv6Client *http.Client
 	)
-	if cfg.PublicIPv4.Enable {
+	if cfg.PublicIPv4.Enabled {
 		pubIPv4Req, pubIPv4Client, err = newIPv4HTTPClient(cfg)
 		if err != nil {
 			return nil, err
 		}
 		pubIPv4Client.Timeout = timeout
 	}
-	if cfg.PublicIPv6.Enable {
+	if cfg.PublicIPv6.Enabled {
 		pubIPv6Req, pubIPv6Client, err = newIPv6HTTPClient(cfg)
 		if err != nil {
 			return nil, err
@@ -362,6 +362,9 @@ func (updater *Updater) pushIPv4(provider *provider, ipv4 string) error {
 	if err != nil {
 		return err
 	}
+	if req == nil {
+		return nil
+	}
 	resp, err := updater.pushIPClient.Do(req)
 	if err != nil {
 		return err
@@ -387,6 +390,9 @@ func (updater *Updater) pushIPv6(provider *provider, ipv6 string) error {
 	req, err := provider.NewIPv6Request(updater.ctx, ipv6)
 	if err != nil {
 		return err
+	}
+	if req == nil {
+		return nil
 	}
 	resp, err := updater.pushIPClient.Do(req)
 	if err != nil {
