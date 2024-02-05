@@ -11,14 +11,14 @@ type Config struct {
 	LogFile string   `toml:"log_file"`
 
 	PublicIPv4 struct {
-		Enable    bool   `toml:"enable"`
+		Enabled   bool   `toml:"enabled"`
 		URL       string `toml:"url"`
 		ProxyURL  string `toml:"proxy"`
 		LocalAddr string `toml:"laddr"`
 	} `toml:"public_ipv4"`
 
 	PublicIPv6 struct {
-		Enable    bool   `toml:"enable"`
+		Enabled   bool   `toml:"enabled"`
 		URL       string `toml:"url"`
 		ProxyURL  string `toml:"proxy"`
 		LocalAddr string `toml:"laddr"`
