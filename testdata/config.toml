@@ -3,16 +3,16 @@ timeout  = "15s"
 log_file = "ddns-updater.log"
 
 [public_ipv4]
-  enable = true
-  url    = "https://api.ipify.org/"
-  proxy  = "http://127.0.0.1:8080/"
-  laddr  = "127.0.0.1"
+  enabled = true
+  url     = "https://api.ipify.org/"
+  proxy   = "http://127.0.0.1:8080/"
+  laddr   = "127.0.0.1"
 
 [public_ipv6]
-  enable = true
-  url    = "https://api6.ipify.org/"
-  proxy  = "https://127.0.0.1:8081/"
-  laddr  = "127.0.0.2:0"
+  enabled = true
+  url     = "https://api6.ipify.org/"
+  proxy   = "https://127.0.0.1:8081/"
+  laddr   = "127.0.0.2:0"
 
 [provider]
   dir   = "testdata"

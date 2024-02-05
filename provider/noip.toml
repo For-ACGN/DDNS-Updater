@@ -6,10 +6,12 @@
 [ipv4]
   path = "/nic/update?hostname={{.hostname}}&myip={{.ipv4}}"
   body = ""
+  skip = false
 
 [ipv6]
   path = "/nic/update?hostname={{.hostname}}&myip={{.ipv6}}"
   body = ""
+  skip = false
 
 [args]
   hostname = "test.ddns.net"
